@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tugas 03 - Interaksi User</title>
+    <script src = "js/three.min.js"></script>
+    <script src = "js/controls/OrbitControls.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+    <style>
+        *
+        {
+            margin: 0;
+            padding: 0;
+            /* text-align:center; */
+        }
+        .scoreboard {
+            text-align:left;
+            position: absolute;
+            padding: 15px;
+            font-family: 'Optima';
+            font-weight: bold;
+            font-size: 25;
+            color: rgb(52, 214, 219);
+        }
+        .lighting {
+            text-align:center;
+            position: absolute;
+            padding: 15px;
+            font-family: 'Optima';
+            font-weight: bold;
+            font-size: 25;
+            color: rgb(52, 214, 219);
+            margin-left: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard">
+        <p>High Score : <span id="highscore">0</span></p>
+        <p>Score : <span id="score">0</span></p>
+    </div>
+    <div class="lighting">
+        <p>Pilih Pencahayaan</p>
+        <select name="light" id="light" style="margin: 2%;">
+            <option value="0">Ambient Light</option>
+            <option value="1">Point Light</option>
+            <option value="2">Hemisphere Light</option>
+            <option value="3">Spot Light</option>
+            <option value="4">Directional Light</option>
+        </select>
+    </div>
+</body>
+</html>
+
+<script>    
+    let scene, camera, renderer, controls, rayCast;
+    
+    let randomInRange = function(from, to) {
+        let x = Math.random() * (to - from);
+        return x + from;
+    };
+
+    let createDodecahedron = function(){
+        let geometry3 = new THREE.DodecahedronGeometry(Math.floor(randomInRange(3, 6)), 1);
+
+        const colorList = [0x00FF00, 0x4a8c, 0x40E0D0, 0xff0000, 0x2F4F4F, 0xFFA500, 0xFFC0CB, 0xFFFFFF];
+        let color = colorList[Math.floor(randomInRange(0, colorList.length))];
+        let emissive = color + 0.5;
+
+        const wrList = [false, false, false, false, true]
+        let wr = wrList[Math.floor(randomInRange(0, wrList.length))]
+
+        let material3 =  new THREE.MeshLambertMaterial({
+                color: color,
+                wireframe: wr,
+                emissive: emissive,
+                shineness: 90
+        });
+
+        dodecahedron = new THREE.Mesh( geometry3, material3 );
+        
+        dodecahedron.position.x = randomInRange(-50, 50);
+        dodecahedron.position.y = randomInRange(-40, 40);
+        dodecahedron.position.z = randomInRange(-30, 30);
+
+        scene.add(dodecahedron);
+    }
+
+    let scoreCorrect = 20;
+    let scoreWrong = -10;
+    let currentScore = 0;
+    let highScore = 0;
+    let elementScore = document.getElementById("score");
+    let elementHighScore = document.getElementById("highscore");
+
+    let selectedObject = []; // menyimpan objek yang sudah dipilih
+    let originalColors = []; // menyimpan warna asli yang sudah di generate
+    
+    let onMouseClick = function(e) {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = - (e.clientY / window.innerHeight) * 2 + 1;
+        mouse.z = 1;
+
+        rayCast.setFromCamera(mouse, camera);
+
+        let intersects = rayCast.intersectObjects(scene.children, false);
+
+        if(intersects.length == 0){
+            // kondisi jika objek tidak berhasil diambil
+            return;
+        } else {   
+            selectedObject.push(intersects);
+            originalColors.push(intersects[0].object.material.color.getHex());
+    
+            console.log(intersects);
+            console.log(originalColors);
+            console.log(selectedObject);
+            
+            // kondisi objek yang dipilih lebih dari satu
+            if(selectedObject.length > 1 ) {
+                // kondisi jika objek sama atau tidak
+                if(selectedObject[0][0].object.uuid === selectedObject[1][0].object.uuid){
+                    selectedObject[0][0].object.material.emissive.setHex(originalColors[0]);
+                    selectedObject[0][0].object.rotation.x = 0;
+                    selectedObject[0][0].object.rotation.y = 0;
+                } else if(originalColors[0] == (originalColors[1])) {
+                    
+
+                    selectedObject.forEach(object => {
+                        object[0].object.geometry.dispose();
+                        object[0].object.material.dispose();
+                        scene.remove(object[0].object);
+                        renderer.renderLists.dispose();
+                    });
+    
+                    currentScore += scoreCorrect;
+                    console.log(currentScore);
+                    elementScore.innerHTML = currentScore;
+    
+                }
+                else {
+                    selectedObject[0][0].object.material.emissive.setHex(originalColors[0]);
+                    selectedObject[0][0].object.rotation.x = 0;
+                    selectedObject[0][0].object.rotation.y = 0;
+                    currentScore += scoreWrong;
+                    console.log(currentScore);
+                    elementScore.innerHTML = currentScore;
+                }
+    
+                selectedObject = [];
+                originalColors = [];
+            } else if (selectedObject.length > 2) { // kalau objek yang dipilih lebih dari dua
+                selectedObject = [];
+                originalColors = [];
+                return;
+            }
+        } 
+    };
+
+    // generate icosahedron baru
+    let speed = 2000;
+    const baseSpeed = 2000;
+
+    let generateDodecahedron = function() {
+        if(scene.children.length >= 50){
+            speed = baseSpeed;
+            
+            if (currentScore > highScore) {
+                highScore = currentScore;
+                elementHighScore.innerHTML = highScore;
+            }
+
+            currentScore = 0;
+            elementScore.innerHTML = currentScore;
+
+        }
+        else{
+            speed -= 150;
+            createDodecahedron();
+        }
+
+        setTimeout(generateDodecahedron, speed);
+    }
+
+    let lightingEffect = function(){
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        ambient.position.set(3, 0, 3);
+        const point = new THREE.PointLight(0xffffff, 1, 100);
+        point.position.set(-10, -10, 0);
+        const hemi = new THREE.HemisphereLight(0x87CEEB, 0x964B00, 1);
+        hemi.position.set(-10, 10, 0);
+        const spot = new THREE.SpotLight(0xffffff, 0.8);
+        spot.position.set(3, 30, 3);
+        const directional = new THREE.DirectionalLight( 0xffffff );
+        directional.position.set( 0, 1, 1 ).normalize();
+
+        const lights = [ambient, point, hemi, spot, directional];
+
+        lights.forEach((light) => scene.add(light));
+
+        lights.forEach((light) => {
+                light.visible = false;
+        });
+        lights[0].visible = true;
+
+        const selectedLight = document.getElementById('light');
+        selectedLight.addEventListener('change', (e) => {
+                const selected = e.target.value;
+                lights.forEach((light) => {
+                        light.visible = false;
+                });
+                lights[selected].visible = true;
+        });
+    }
+    
+    // set up the environment - 
+    // initiallize scene, camera, objects and renderer
+    let init = function() {
+        // create the scene
+        scene = new THREE.Scene();
+
+        // create an locate the camera
+        camera = new THREE.PerspectiveCamera(70, 
+                        window.innerWidth / window.innerHeight, 
+                        1, 1000);
+        camera.position.z = 75;
+
+        // Lighting effect
+        lightingEffect();
+				
+        // membuat geometri Dodecahedron sebanyak 10
+        for(let i = 1; i <= 10; i++)
+            createDodecahedron();
+
+        // tambah Dodecahedron baru dengan kecepatan tertentu
+        generateDodecahedron();
+        
+        // create the renderer   
+        renderer = new THREE.WebGLRenderer();   
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        document.body.appendChild(renderer.domElement);
+        document.addEventListener("click", onMouseClick, false);  
+        
+        // control orbit
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.enableDamping = true;
+        
+        // inisialisasi raycaster
+        rayCast = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        mouse.x = mouse.y = -1;
+    };
+    const clock = new THREE.Clock();
+
+    let mainLoop = function() {
+        const elapsedTime = clock.getElapsedTime();
+
+        if (selectedObject.length == 1) {
+            selectedObject[0][0].object.material.emissive.setHex(elapsedTime % 0.5 >= 0.25 ? originalColors[0] : (originalColors[0] * 3));
+            selectedObject[0][0].object.rotation.y += 0.01;
+            selectedObject[0][0].object.rotation.x += 0.05;
+        }
+        
+        renderer.render(scene, camera);
+        controls.update();        
+        window.requestAnimationFrame(mainLoop);
+    };
+
+    init();
+    mainLoop();
+</script>
