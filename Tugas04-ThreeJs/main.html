@@ -152,6 +152,8 @@
         //target = new THREE.Object3D();
         //camera.lookAt(target.position);
 
+        // scene.add(new THREE.CameraHelper(camera)) ;
+
         createPanorama();
         createLighting();
         createFloor();
@@ -161,6 +163,9 @@
         // create the renderer   
         renderer = new THREE.WebGLRenderer({antialiasing: true});   
         renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // renderer.shadowMapEnabled = true;
+        // renderer.shadowMapSoft = true;
         document.body.appendChild(renderer.domElement);
 
         
